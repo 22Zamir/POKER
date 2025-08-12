@@ -12,9 +12,10 @@
 
 import random
 from typing import List, Callable
-
+from utils.detailed_log import PokerLogger
 from .cards import Deck, Card
 from .evaluator import evaluate_best_hand
+
 
 class Player:
     def __init__(self, name: str, strategy: Callable, stack: int = 1000):
@@ -30,6 +31,7 @@ class Player:
         # Игрок в игре только если есть стек
         self.in_game = self.stack > 0
 
+
 class PokerSimulator:
     def __init__(self, players: List[Player], big_blind: int = 20, rng=None):
         if len(players) < 2:
@@ -37,106 +39,153 @@ class PokerSimulator:
         self.players = players
         self.bb = big_blind
         self.rng = rng or random.Random()
+        self.community_cards = []
+        self.pot = 0
+        self.logger = PokerLogger()
+        self.hand_counter = 0
+        self.deck = None
+        self.current_stage = 0
+        self.stages = ["Preflop", "Flop", "Turn", "River"]
 
         for p in players:
             p.simulator = self
 
     def play_hand(self, verbose=True):
+        """Автоматически проходит всю раздачу от начала до конца."""
+        self.hand_counter += 1
+        self.logger.log_hand_start(self.hand_counter)
+
+        self.start_hand()
+
+        result = None
+        for _ in range(4):  # Preflop → Flop → Turn → River
+            result = self.next_stage()
+            if result["action"] != "continue":
+                break
+
+        if verbose:
+            if result["action"] == "all_folded":
+                self.logger.log_all_folded(result["winner"], result["pot"])
+            elif result["action"] == "showdown":
+                self.logger.log_showdown(result["winners"], result["pot"], result.get("rank"))
+            self.logger.log_stacks(self.players)
+
+        return result
+
+    def start_hand(self):
+        """Начинаем новую раздачу."""
         self.deck = Deck(self.rng)
         self.deck.shuffle()
         self.pot = 0
+        self.community_cards = []
+        self.current_stage = 0
 
-        # Сброс рук и статуса игроков
+        # Сброс игроков
         for p in self.players:
             p.reset_for_new_hand()
 
-        # Раздача по 2 карты каждому игроку
+        # Раздача карт
         for p in self.players:
-            p.hand = self.deck.deal(2)
+            if p.in_game:
+                p.hand = self.deck.deal(2)
 
-        stages = ["Preflop", "Flop", "Turn", "River"]
-        community_cards = []
+    def next_stage(self) -> dict:
+        """Переход к следующей стадии: Preflop → Flop → Turn → River → Showdown"""
+        if self.current_stage >= len(self.stages):
+            return {"error": "Игра завершена"}
 
-        for stage in stages:
-            if stage != "Preflop":
-                cards_to_add = {"Flop": 3, "Turn": 1, "River": 1}[stage]
-                community_cards += self.deck.deal(cards_to_add)
+        stage = self.stages[self.current_stage]
+        self.current_stage += 1
 
-            if verbose:
-                print(f"\n[{stage}] Борд: {' '.join(str(c) for c in community_cards)}")
+        # Добавляем карты на борд
+        if stage == "Flop":
+            self.community_cards += self.deck.deal(3)
+        elif stage == "Turn":
+            self.community_cards += self.deck.deal(1)
+        elif stage == "River":
+            self.community_cards += self.deck.deal(1)
 
-            for player in self.players:
-                # Игрок ходит только если в игре и есть стек
-                if player.in_game and player.stack > 0:
-                    action = player.strategy(player, community_cards, self.pot, stage)
-                    if verbose:
-                        print(f"{player.name} -> {action}")
+        # Логика ставок на текущей стадии
+        result = self._play_betting_round(stage)
 
-                    if action == "fold":
+        # Если остался один игрок — он забирает банк
+        if "winner" in result:
+            return result
+
+        # Если это последняя стадия — определяем победителя
+        if stage == "River":
+            return self._showdown()
+
+        return {
+            "stage": stage,
+            "community_cards": self.community_cards,
+            "pot": self.pot,
+            "action": "continue"
+        }
+
+    def _play_betting_round(self, stage: str) -> dict:
+        """Обработка действий игроков на текущей стадии."""
+        for player in self.players:
+            if player.in_game and player.stack > 0:
+                action = player.strategy(player, self.community_cards, self.pot, stage)
+                if action == "fold":
+                    player.in_game = False
+                elif action == "call":
+                    bet = min(self.bb, player.stack)
+                    player.stack -= bet
+                    self.pot += bet
+                    if player.stack == 0:
                         player.in_game = False
-                    elif action == "call":
-                        call_amount = self.bb  # упрощаем, можно улучшить
-                        bet = min(call_amount, player.stack)
-                        player.stack -= bet
-                        self.pot += bet
-                        # Если стек закончился, игрок выбывает
-                        if player.stack == 0:
-                            player.in_game = False
-                    elif action == "allin":
-                        bet = player.stack
-                        player.stack = 0
-                        self.pot += bet
-                        player.in_game = False  # all-in означает больше нет ходов
+                elif action == "allin":
+                    bet = player.stack
+                    player.stack = 0
+                    self.pot += bet
+                    player.in_game = False
 
-            if verbose:
-                for p in self.players:
-                    print(f"{p.name} стек: {p.stack}")
+        # Проверка: остался ли один активный игрок?
+        active = [p for p in self.players if p.in_game and p.stack > 0]
+        if len(active) == 1:
+            winner = active[0]
+            winner.stack += self.pot
+            return {
+                "winner": winner.name,
+                "pot": self.pot,
+                "stage": stage,
+                "action": "all_folded"
+            }
 
-            # Проверяем сколько осталось активных игроков с деньгами
-            active = [p for p in self.players if p.in_game and p.stack > 0]
-            if len(active) == 1:
-                winner = active[0]
-                winner.stack += self.pot
-                if verbose:
-                    print(f"\nВсе сбросили, {winner.name} забрал {self.pot}")
-                return {
-                    "winners": [winner.name],
-                    "pot": self.pot,
-                    "rank": None
-                }
+        return {"action": "continue"}
 
-        # Если дошли до шоудауна - определяем победителя
+    def _showdown(self) -> dict:
+        """Определение победителя по силе руки."""
         best_rank = None
         winners = []
         for p in self.players:
             if not p.in_game:
                 continue
-            rank = evaluate_best_hand(p.hand + community_cards)
+            rank = evaluate_best_hand(p.hand + self.community_cards)
             if best_rank is None or rank > best_rank:
                 best_rank = rank
                 winners = [p]
             elif rank == best_rank:
                 winners.append(p)
 
+        # Даже если победителей нет — возвращаем action
         if not winners:
-            # Никто не остался для шоудауна — просто вернуть информацию без деления
-            if verbose:
-                print("\nНикто не остался для шоудауна, банк не распределён.")
             return {
                 "winners": [],
                 "pot": self.pot,
-                "rank": None
+                "rank": None,
+                "action": "showdown"
             }
 
         split_pot = self.pot // len(winners)
         for w in winners:
             w.stack += split_pot
 
-        if verbose:
-            print(f"\nПобедитель(и): {[w.name for w in winners]} получили {split_pot} каждый")
-
         return {
             "winners": [w.name for w in winners],
             "pot": self.pot,
-            "rank": best_rank
+            "rank": best_rank,
+            "action": "showdown"
         }
