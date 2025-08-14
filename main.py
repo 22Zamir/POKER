@@ -1,11 +1,13 @@
 from poker.simulator import PokerSimulator, Player
-from ai.basic_strategy import simple_strategy, monte_carlo_strategy
+from ai.basic_strategy import simple_strategy, monte_carlo_strategy, aggressive_strategy
 
 # Создаём игроков
+positions = ["UTG", "CO", "BTN"]
+
 players = [
-    Player("SimpleBot", simple_strategy),
-    Player("MCCBot", monte_carlo_strategy),
-    Player("SimpleBot2", monte_carlo_strategy),
+    Player("UTG_Bot", simple_strategy, position="UTG"),
+    Player("CO_Bot", monte_carlo_strategy, position="CO"),
+    Player("BTN_Bot", aggressive_strategy, position="BTN"),
 ]
 
 # Создаём симулятор

@@ -18,13 +18,14 @@ from .evaluator import evaluate_best_hand
 
 
 class Player:
-    def __init__(self, name: str, strategy: Callable, stack: int = 1000):
+    def __init__(self, name: str, strategy: Callable, stack: int = 1000, position: str = None):
         self.name = name
         self.strategy = strategy
         self.stack = stack
         self.hand: List[Card] = []
-        self.in_game = True  # не сбросил карты
-        self.simulator = None  # ссылка на симулятор, установится в PokerSimulator
+        self.in_game = True
+        self.simulator = None
+        self.position = position  # например, "BTN", "UTG"
 
     def reset_for_new_hand(self):
         self.hand.clear()
@@ -131,13 +132,8 @@ class PokerSimulator:
             if not (player.in_game and player.stack > 0):
                 continue
 
-            action = player.strategy(
-                player,
-                self.community_cards,
-                self.pot,
-                stage,
-                current_bet=self.current_bet  # Передаём текущую ставку
-            )
+            action = player.strategy(player, self.community_cards, self.pot, stage)
+
             if action == "fold":
                 player.in_game = False
                 self.logger.log_fold(player.name, self.pot)
@@ -161,6 +157,8 @@ class PokerSimulator:
                         bet = min(int(self.current_bet * mult), player.stack)
                     except:
                         bet = min(self.current_bet, player.stack)  # fallback
+
+                self.logger.log_bluff_raise(player.name, bet, self.pot)
                 player.stack -= bet
                 self.pot += bet
                 self.current_bet = bet  # Обновляем текущую ставку
@@ -172,6 +170,25 @@ class PokerSimulator:
                 player.stack = 0
                 self.pot += bet
                 self.logger.log_allin(player.name, bet, self.pot)
+            elif action.startswith("bluff_raise"):
+                # То же, что обычный raise, но с пометкой
+                base_action = action.replace("bluff_", "")
+                # Просто обрабатываем как обычный raise
+                multiplier = base_action.replace("raise_", "").replace("x", "")
+                if multiplier == "pot":
+                    bet = min(self.pot, player.stack)
+                else:
+                    try:
+                        mult = float(multiplier)
+                        bet = min(int(self.bb * mult), player.stack)
+                    except:
+                        bet = min(self.bb, player.stack)
+                player.stack -= bet
+                self.pot += bet
+                self.current_bet = bet
+                self.logger.log_action(player.name, f"BLUFF RAISE {bet}!", self.pot)
+                if player.stack == 0:
+                    player.in_game = False
 
         # Проверка: остался ли один активный игрок?
         active = [p for p in self.players if p.in_game and p.stack > 0]

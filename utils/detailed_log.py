@@ -7,7 +7,24 @@ from poker.cards import Card
 class PokerLogger:
     def __init__(self, log_file="poker_game.log"):
         self.log_file = log_file
+        self.last_action = None    # 'bluff_raise', 'raise', 'fold' и т.д.
+        self.last_player = None    # кто последним сделал действие
         self._clear_log()
+
+    def log_bluff_raise(self, player_name: str, amount: int, pot: int):
+        self._write(f"  {player_name} → 🎭 BLUFF RAISE {amount}! (банк: {pot})")
+        self.last_action = 'bluff_raise'
+        self.last_player = player_name
+
+    def log_call(self, player_name: str, amount: int, pot: int):
+        self._write(f"  {player_name} → CALL {amount} (банк: {pot})")
+        self.last_action = 'call'
+        self.last_player = player_name
+
+    def log_fold(self, player_name: str, pot: int):
+        self._write(f"  {player_name} → FOLD (банк: {pot})")
+        self.last_action = 'fold'
+        self.last_player = player_name
 
     def _clear_log(self):
         """Очищаем файл перед новой сессией"""
@@ -31,11 +48,11 @@ class PokerLogger:
     def log_action(self, player_name: str, action: str, pot: int):
         self._write(f"  {player_name} → {action.upper()} (банк: {pot})")
 
-    def log_fold(self, player_name: str, pot: int):
-        self._write(f"  {player_name} → FOLD (банк: {pot})")
+   # def log_fold(self, player_name: str, pot: int):
+    #    self._write(f"  {player_name} → FOLD (банк: {pot})")
 
-    def log_call(self, player_name: str, amount: int, pot: int):
-        self._write(f"  {player_name} → CALL {amount} (банк: {pot})")
+    #def log_call(self, player_name: str, amount: int, pot: int):
+    #    self._write(f"  {player_name} → CALL {amount} (банк: {pot})")
 
     def log_raise(self, player_name: str, amount: int, pot: int, raise_type: str = "RAISE"):
         self._write(f"  {player_name} → {raise_type} {amount}! (банк: {pot})")
@@ -60,3 +77,6 @@ class PokerLogger:
         print(text)  # Вывод в консоль
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(text + "\n")
+
+    def log_bluff_raise(self, player_name: str, amount: int, pot: int):
+        self._write(f"  {player_name} → 🎭 BLUFF RAISE {amount}! (банк: {pot})")

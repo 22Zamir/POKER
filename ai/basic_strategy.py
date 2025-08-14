@@ -40,6 +40,65 @@ def simple_strategy(player, community_cards, pot, stage, current_bet=None):
             return "call"
 
 
+def aggressive_strategy(player, community_cards, pot, stage):
+    """
+    Умная стратегия:
+    - Использует позицию
+    - Делает рейзы в поздней позиции
+    - Иногда блефует
+    - Оценивает win_rate
+    """
+    # Оцениваем шансы
+    num_opponents = sum(1 for p in player.simulator.players if p.in_game and p != player)
+    win_rate = estimate_win_rate(
+        player.hand,
+        community_cards,
+        num_opponents=num_opponents,
+        num_simulations=300
+    )
+
+    is_late_position = player.position in ["CO", "BTN"]
+    is_mid_position = player.position in ["MP", "UTG"]
+    pot_odds = pot / (pot + 20)  # шанс окупить колл
+
+    if stage == "Preflop":
+        ranks = [c.rank for c in player.hand]
+        suited = player.hand[0].suit == player.hand[1].suit
+        connected = abs(ranks[0] - ranks[1]) == 1
+
+        # Поздняя позиция — агрессивнее
+        if is_late_position:
+            if ranks[0] == ranks[1] or any(r >= 11 for r in ranks):  # пара или J+
+                return "raise_2x"
+            elif suited and connected:
+                return "call"
+            else:
+                return "fold"
+        else:
+            if ranks[0] == ranks[1]:
+                return "raise_2x"
+            elif any(r >= 13 for r in ranks):  # K, A
+                return "call"
+            else:
+                return "fold"
+
+    else:
+        # Постфлоп
+        if win_rate > 0.7:
+            return "raise_pot"
+        elif win_rate > 0.5:
+            return "raise_2x"
+        elif win_rate > 0.3:
+            if is_late_position and random.random() < 0.4:
+                return "bluff_raise_2x"  # Блеф в 40% случаев
+            elif random.random() < 0.7:
+                return "call"
+            else:
+                return "fold"
+        else:
+            return "fold"
+
+
 def estimate_win_rate(player_cards: List[Card],
                       community_cards: List[Card],
                       num_opponents: int,
