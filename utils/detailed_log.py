@@ -37,6 +37,9 @@ class PokerLogger:
     def log_call(self, player_name: str, amount: int, pot: int):
         self._write(f"  {player_name} → CALL {amount} (банк: {pot})")
 
+    def log_raise(self, player_name: str, amount: int, pot: int, raise_type: str = "RAISE"):
+        self._write(f"  {player_name} → {raise_type} {amount}! (банк: {pot})")
+
     def log_allin(self, player_name: str, amount: int, pot: int):
         self._write(f"  {player_name} → ALL-IN {amount}! (банк: {pot})")
 

@@ -124,23 +124,54 @@ class PokerSimulator:
         }
 
     def _play_betting_round(self, stage: str) -> dict:
-        """Обработка действий игроков на текущей стадии."""
+        """Обработка действий игроков с поддержкой raise."""
+        self.current_bet = self.bb  # Начальная ставка = big blind
+
         for player in self.players:
-            if player.in_game and player.stack > 0:
-                action = player.strategy(player, self.community_cards, self.pot, stage)
-                if action == "fold":
+            if not (player.in_game and player.stack > 0):
+                continue
+
+            action = player.strategy(
+                player,
+                self.community_cards,
+                self.pot,
+                stage,
+                current_bet=self.current_bet  # Передаём текущую ставку
+            )
+            if action == "fold":
+                player.in_game = False
+                self.logger.log_fold(player.name, self.pot)
+            elif action == "call":
+                bet = min(self.current_bet, player.stack)  # Коллим текущую ставку
+                player.stack -= bet
+                self.pot += bet
+                self.logger.log_call(player.name, bet, self.pot)
+                if player.stack == 0:
                     player.in_game = False
-                elif action == "call":
-                    bet = min(self.bb, player.stack)
-                    player.stack -= bet
-                    self.pot += bet
-                    if player.stack == 0:
-                        player.in_game = False
-                elif action == "allin":
-                    bet = player.stack
-                    player.stack = 0
-                    self.pot += bet
+            elif action.startswith("raise_"):
+                # Поддержка: raise_2x, raise_pot, etc.
+                multiplier = action.replace("raise_", "").replace("x", "")
+                if multiplier == "pot":
+                    bet = min(self.pot, player.stack)
+                elif multiplier == "half":
+                    bet = min(self.pot // 2, player.stack)
+                else:
+                    try:
+                        mult = float(multiplier)
+                        bet = min(int(self.current_bet * mult), player.stack)
+                    except:
+                        bet = min(self.current_bet, player.stack)  # fallback
+                player.stack -= bet
+                self.pot += bet
+                self.current_bet = bet  # Обновляем текущую ставку
+                self.logger.log_action(player.name, f"RAISE {bet}", self.pot)
+                if player.stack == 0:
                     player.in_game = False
+            elif action == "allin":
+                bet = player.stack
+                player.stack = 0
+                self.pot += bet
+                self.logger.log_allin(player.name, bet, self.pot)
 
         # Проверка: остался ли один активный игрок?
         active = [p for p in self.players if p.in_game and p.stack > 0]
@@ -150,7 +181,6 @@ class PokerSimulator:
             return {
                 "winner": winner.name,
                 "pot": self.pot,
-                "stage": stage,
                 "action": "all_folded"
             }
 

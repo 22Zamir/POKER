@@ -5,7 +5,7 @@ from ai.basic_strategy import simple_strategy, monte_carlo_strategy
 players = [
     Player("SimpleBot", simple_strategy),
     Player("MCCBot", monte_carlo_strategy),
-    Player("SimpleBot2", simple_strategy),
+    Player("SimpleBot2", monte_carlo_strategy),
 ]
 
 # Создаём симулятор

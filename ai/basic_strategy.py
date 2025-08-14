@@ -13,11 +13,13 @@ from poker.cards import Deck, Card
 from poker.evaluator import evaluate_best_hand
 
 
-def simple_strategy(player, community_cards, pot, stage):
+def simple_strategy(player, community_cards, pot, stage, current_bet=None):
     """
     Очень простая стратегия:
     - На Preflop: коллим, если пара или карта старше десятки, иначе фолд
-    - На остальных стадиях всегда коллим
+    - На остальных стадиях:
+        - Коллим, если ставка меньше половины стека
+        - Фолд, если ставка больше половины стека
     """
     ranks = [card.rank for card in player.hand]
 
@@ -27,7 +29,15 @@ def simple_strategy(player, community_cards, pot, stage):
         else:
             return "fold"
     else:
-        return "call"
+        # На других стадиях проверяем размер ставки
+        if current_bet is None:
+            current_bet = player.simulator.bb  # По умолчанию big blind
+
+        # Если ставка больше половины стека — фолд
+        if current_bet > player.stack / 2:
+            return "fold"
+        else:
+            return "call"
 
 
 def estimate_win_rate(player_cards: List[Card],
@@ -74,28 +84,35 @@ def estimate_win_rate(player_cards: List[Card],
     return (wins + ties * 0.5) / num_simulations
 
 
-def monte_carlo_strategy(player, community_cards, pot, stage):
+def monte_carlo_strategy(player, community_cards, pot, stage, current_bet=None):
     """
-    Стратегия с разным поведением по стадиям.
-    Пока простой пример:
-    - На Preflop играем осторожно
-    - На остальных стадиях считаем win_rate и принимаем решение
+    Улучшенная стратегия с рейзами на основе win_rate.
     """
+    num_opponents = sum(
+        1 for p in player.simulator.players if p.in_game and p != player
+    )
+    win_rate = estimate_win_rate(
+        player.hand,
+        community_cards,
+        num_opponents=num_opponents,
+        num_simulations=300
+    )
+
     if stage == "Preflop":
         ranks = [card.rank for card in player.hand]
-        if ranks[0] == ranks[1] or any(r >= 10 for r in ranks):
+        if ranks[0] == ranks[1]:
+            return "raise_2x"
+        elif any(r >= 12 for r in ranks):  # Q, K, A
+            return "raise_2x"
+        elif any(r >= 10 for r in ranks):
             return "call"
         else:
             return "fold"
     else:
-        win_rate = estimate_win_rate(
-            player.hand,
-            community_cards,
-            num_opponents=sum(
-                1 for p in player.simulator.players if p.in_game and p != player),
-        )
-        if win_rate > 0.7:
-            return "allin"
+        if win_rate > 0.8:
+            return "raise_pot"
+        elif win_rate > 0.6:
+            return "raise_2x"
         elif win_rate > 0.4:
             return "call"
         else:
