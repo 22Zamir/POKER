@@ -41,3 +41,5 @@ for hand_num in range(3):
     # Показываем стеки после раздачи
     stacks = " | ".join(f"{p.name}: {p.stack}" for p in players)
     print(f"📊 Стеки: {stacks}")
+
+

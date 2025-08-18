@@ -84,15 +84,15 @@ class PokerGUI(tk.Tk):
         """Обновляем отображение стеков игроков, включая подсветку блефа."""
         for (frame, label), player in zip(self.player_frames, self.simulator.players):
             if not player.in_game:
-                # Игрок выбыл
+                # Игрок выбыл — красный текст
                 label.config(text=f"{player.name}: выбыл", fg="red")
             else:
-                # Игрок в игре — проверим, был ли это блеф
+                # Игрок в игре — проверяем, был ли это блеф
                 if (hasattr(self.simulator.logger, 'last_player') and
                         self.simulator.logger.last_player == player.name and
                         self.simulator.logger.last_action == 'bluff_raise'):
 
-                    # Подсвечиваем блеф
+                    # Подсвечиваем блеф: фиолетовый и жирный
                     label.config(
                         text=f"{player.name}: стек {player.stack}",
                         fg="purple",
