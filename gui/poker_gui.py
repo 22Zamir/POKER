@@ -127,7 +127,8 @@ class PokerGUI(tk.Tk):
         self.update_players()
         self.board_label.config(text="Борд: ")
         self.update_board()
-        self.log.insert(tk.END, "🃏 Раздача началась!\n")
+        self.log.insert(tk.END, "🎮 Добро пожаловать в Poker Simulator!\n", ("stage",))
+        self.log.insert(tk.END, "🃏 Раздача началась! Стартовый банк: 0\n", ("stage",))
         self.start_button.config(state=tk.DISABLED)
         self.next_button.config(state=tk.NORMAL)
 
@@ -140,34 +141,26 @@ class PokerGUI(tk.Tk):
         board_str = " ".join(c.pretty() for c in self.simulator.community_cards)
         self.board_label.config(text=f"Борд: {board_str}")
 
-        # Обновляем GUI
+        # Обновляем GUI игроков и борд
         self.update_players()
         self.update_board()
 
-        # Логируем результат
-        stage = self.simulator.stages[self.simulator.current_stage - 1] if self.simulator.current_stage > 0 else ""
+        # 🔥 Красивый лог — только один раз!
         self.pretty_log(result)
 
+        # Подсветка блефа (если был)
+        stage = self.simulator.stages[self.simulator.current_stage - 1] if self.simulator.current_stage > 0 else ""
+
         if hasattr(self.simulator.logger, 'last_action') and self.simulator.logger.last_action == 'bluff_raise':
-            self.log.insert(tk.END, f"[{stage}] 🎭 {self.simulator.logger.last_player} сделал БЛЕФ-РЕЙЗ!\n")
+            player = self.simulator.logger.last_player
+            log_line = f"[{stage}] 🎭 {player} сделал БЛЕФ-РЕЙЗ!\n"
+            self.log.insert(tk.END, log_line, ("action",))
+            self.log.see(tk.END)
 
-        if result.get("action") == "all_folded":
-            self.log.insert(tk.END, f"[{stage}] 🎉 Все сбросили! {result['winner']} забирает {result['pot']}\n")
+        # Деактивация кнопок при завершении
+        if result.get("action") == "all_folded" or result.get("action") == "showdown":
             self.next_button.config(state=tk.DISABLED)
             self.start_button.config(state=tk.NORMAL)
-        elif result.get("action") == "showdown":
-            winners = result["winners"]
-            if winners:
-                split_pot = result["pot"] // len(winners)
-                self.log.insert(tk.END, f"[{stage}] 🏆 Победитель(и): {winners} → +{split_pot} каждый\n")
-            else:
-                self.log.insert(tk.END, f"[{stage}] 🏆 Никто не победил (банк: {result['pot']})\n")
-            self.next_button.config(state=tk.DISABLED)
-            self.start_button.config(state=tk.NORMAL)
-        else:
-            self.log.insert(tk.END, f"[{stage}] 💰 Банк: {self.simulator.pot}\n")
-
-        self.log.see(tk.END)
 
     def update_players(self):
         """Обновляет стеки и карты игроков."""
@@ -235,49 +228,36 @@ class PokerGUI(tk.Tk):
             'AllFolded': '🎉'
         }.get(stage, '🎲')
 
-        # Цвета (теги)
+        # Теги цветов
         self.log.tag_configure("stage", foreground="#ffd700", font=("Courier", 11, "bold"))
         self.log.tag_configure("bank", foreground="#00ff00", font=("Courier", 11))
-        self.log.tag_configure("card", foreground="#ff6b6b", font=("Courier", 11))
-        self.log.tag_configure("player", foreground="#4ecdc4", font=("Courier", 11))
-        self.log.tag_configure("action", foreground="#ff9f43", font=("Courier", 11))
         self.log.tag_configure("winner", foreground="#ffcc00", font=("Courier", 11, "bold"))
 
-        # Строка лога
         log_line = f"[{stage_emoji} {stage}] "
 
-        if action == 'all_folded':
-            winner = result.get('winner', '???')
+        if action == "all_folded":
+            winner = result.get("winner", "???")
             log_line += f"🎉 Все сбросили! {winner} забирает {pot}\n"
             self.log.insert(tk.END, log_line, ("winner",))
-        elif action == 'showdown':
-            winners = result.get('winners', [])
-            if winners:
-                split_pot = pot // len(winners)
-                log_line += f"🏆 Победитель(и): "
-                for w in winners:
-                    log_line += f"{w} "
-                log_line += f"→ +{split_pot} каждый\n"
-                self.log.insert(tk.END, log_line, ("winner",))
-            else:
+
+        elif action == "showdown":
+            winners = result.get("winners", [])
+            if not winners:
                 log_line += f"🏆 Никто не победил (банк: {pot})\n"
                 self.log.insert(tk.END, log_line, ("bank",))
+            else:
+                split_pot = pot // len(winners)
+                winners_str = ", ".join(winners)
+                log_line += f"🏆 Победитель(и): {winners_str} → +{split_pot} каждый\n"
+                self.log.insert(tk.END, log_line, ("winner",))
         else:
-            # Обычный ход
+            # Обычный ход: Preflop, Flop, Turn, River
             community_cards = result.get('community_cards', [])
             cards_str = " ".join(c.pretty() for c in community_cards) if community_cards else "—"
-
             log_line += f"💰 Банк: {pot} | Борд: {cards_str}\n"
             self.log.insert(tk.END, log_line, ("bank",))
 
-            # Добавим действия игроков (если есть)
-            if hasattr(self.simulator.logger, 'last_action') and self.simulator.logger.last_action == 'bluff_raise':
-                player = self.simulator.logger.last_player
-                log_line = f"[{stage_emoji} {stage}] 🎭 {player} сделал БЛЕФ-РЕЙЗ!\n"
-                self.log.insert(tk.END, log_line, ("action",))
-
         self.log.see(tk.END)
-
 
 if __name__ == "__main__":
     players = [
