@@ -13,9 +13,7 @@
   <h1>🃏 Poker Simulator with AI & GUI</h1>
   <p class="subtitle">Симулятор Texas Hold'em с искусственным интеллектом и графическим интерфейсом</p>
 
-  <div class="screenshot">
-    <img src="screenshots/gui-example.png" alt="Скриншот интерфейса" />
-  </div>
+
 
   <h2>🎯 Возможности</h2>
   <ul>
