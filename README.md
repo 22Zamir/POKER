@@ -4,76 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Poker Simulator with AI & GUI</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f4f7fa;
-      color: #333;
-      line-height: 1.6;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 900px;
-      margin: auto;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    h1, h2, h3 {
-      color: #2c3e50;
-    }
-    h1 {
-      text-align: center;
-      font-size: 2.5em;
-      margin-bottom: 10px;
-    }
-    .subtitle {
-      text-align: center;
-      color: #7f8c8d;
-      font-style: italic;
-      margin-bottom: 30px;
-    }
-    code {
-      background: #f1f3f5;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: Consolas, monospace;
-      font-size: 0.95em;
-    }
-    pre {
-      background: #2c3e50;
-      color: #ecf0f1;
-      padding: 15px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 0.9em;
-    }
-    ul, ol {
-      margin: 10px 0;
-      padding-left: 20px;
-    }
-    li {
-      margin: 8px 0;
-    }
-    .screenshot {
-      text-align: center;
-      margin: 20px 0;
-    }
-    .screenshot img {
-      max-width: 100%;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    }
-    footer {
-      text-align: center;
-      margin-top: 40px;
-      color: #95a5a6;
-      font-size: 0.9em;
-    }
-  </style>
+  
 </head>
 <body>
 
