@@ -217,22 +217,15 @@ class PokerSimulator:
             elif rank == best_rank:
                 winners.append(p)
 
-        # Даже если победителей нет — возвращаем action
-        if not winners:
-            return {
-                "winners": [],
-                "pot": self.pot,
-                "rank": None,
-                "action": "showdown"
-            }
-
         split_pot = self.pot // len(winners)
         for w in winners:
             w.stack += split_pot
 
+        # 🔥 Добавляем community_cards в результат!
         return {
             "winners": [w.name for w in winners],
             "pot": self.pot,
             "rank": best_rank,
-            "action": "showdown"
+            "action": "showdown",
+            "community_cards": self.community_cards  # ✅ Чтобы GUI обновил борд
         }

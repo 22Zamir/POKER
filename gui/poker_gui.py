@@ -213,8 +213,8 @@ class PokerGUI(tk.Tk):
 
     def pretty_log(self, result):
         """Красиво выводит результат в лог."""
-        stage = self.simulator.stages[
-            self.simulator.current_stage - 1] if self.simulator.current_stage > 0 else "Unknown"
+        # Берём stage из результата, а не из current_stage
+        stage = result.get('stage', 'Unknown')
         pot = result.get('pot', 0)
         action = result.get('action', 'continue')
 
@@ -242,14 +242,20 @@ class PokerGUI(tk.Tk):
 
         elif action == "showdown":
             winners = result.get("winners", [])
+            community_cards = result.get("community_cards", [])
+            cards_str = " ".join(c.pretty() for c in community_cards) if community_cards else "—"
+
+            log_line += f"💰 Банк: {pot} | Борд: {cards_str}"
+
             if not winners:
-                log_line += f"🏆 Никто не победил (банк: {pot})\n"
+                log_line += " | 🏆 Никто не победил\n"
                 self.log.insert(tk.END, log_line, ("bank",))
             else:
                 split_pot = pot // len(winners)
                 winners_str = ", ".join(winners)
-                log_line += f"🏆 Победитель(и): {winners_str} → +{split_pot} каждый\n"
+                log_line += f" | 🏆 Победитель(и): {winners_str} → +{split_pot}\n"
                 self.log.insert(tk.END, log_line, ("winner",))
+
         else:
             # Обычный ход: Preflop, Flop, Turn, River
             community_cards = result.get('community_cards', [])
@@ -258,6 +264,7 @@ class PokerGUI(tk.Tk):
             self.log.insert(tk.END, log_line, ("bank",))
 
         self.log.see(tk.END)
+
 
 if __name__ == "__main__":
     players = [
