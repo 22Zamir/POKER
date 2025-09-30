@@ -20,6 +20,7 @@ RANK_STR_TO_INT = {
     '6': 6, '7': 7, '8': 8, '9': 9,
     'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
 }
+
 INT_TO_RANK_STR = {v: k for k, v in RANK_STR_TO_INT.items()}
 
 SUITS = {'s', 'h', 'd', 'c'}
@@ -40,9 +41,15 @@ class Card:
     def __str__(self) -> str:
         return f"{INT_TO_RANK_STR[self.rank]}{self.suit}"
 
+    def __repr__(self) -> str:
+        return f"Card({self.rank}, '{self.suit}')"
+
     def pretty(self) -> str:
-        """Возвращает человекочитаемое представление, например 'A♠'."""
         return f"{INT_TO_RANK_STR[self.rank]}{SUIT_SYMBOLS[self.suit]}"
+
+    def rank_str(self) -> str:
+        """Возвращает строковое обозначение ранга: A, K, Q, J, T, 9, ..., 2"""
+        return INT_TO_RANK_STR[self.rank]
 
 
 def parse_card(s: str) -> Card:
@@ -53,8 +60,10 @@ def parse_card(s: str) -> Card:
     if not isinstance(s, str) or len(s) != 2:
         raise ValueError(f"Card string must be 2 chars like 'As', got {s!r}")
     r, suit = s[0].upper(), s[1].lower()
-    if r not in RANK_STR_TO_INT or suit not in SUITS:
-        raise ValueError(f"Invalid card string: {s!r}")
+    if r not in RANK_STR_TO_INT:
+        raise ValueError(f"Invalid rank symbol: {r!r}")
+    if suit not in SUITS:
+        raise ValueError(f"Invalid suit: {suit!r}")
     return Card(rank=RANK_STR_TO_INT[r], suit=suit)
 
 

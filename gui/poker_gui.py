@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from poker.simulator import PokerSimulator, Player
 from ai.basic_strategy import simple_strategy, monte_carlo_strategy
@@ -8,6 +9,11 @@ class PokerGUI(tk.Tk):
         super().__init__()
         self.simulator = simulator
         self.title("Poker Simulator")
+
+        # Путь к папке с картами
+        self.cards_dir = os.path.join(os.path.dirname(__file__), "..", "templates", "cards")
+        if not os.path.exists(self.cards_dir):
+            print(f"⚠ Папка с картами не найдена: {self.cards_dir}")
 
         # Метка для борда
         self.board_label = tk.Label(self, text="Борд: ", font=("Courier", 14))
@@ -34,6 +40,23 @@ class PokerGUI(tk.Tk):
         self.next_button = tk.Button(self, text="Следующая стадия", command=self.next_stage, state=tk.DISABLED)
         self.next_button.pack(pady=2)
 
+    def update_board(self):
+        """Отображает борд как изображения карт."""
+        board_frame = tk.Frame(self)
+        board_frame.place(x=100, y=100)
+
+        for i, card in enumerate(self.simulator.community_cards):
+            filename = f"{card.rank_str()}{card.suit}.png"
+            path = os.path.join(self.cards_dir, filename)
+            try:
+                img = tk.PhotoImage(file=path)
+                img = img.subsample(2)  # уменьшаем в 2 раза
+                label = tk.Label(board_frame, image=img)
+                label.image = img  # сохраняем ссылку
+                label.grid(row=0, column=i, padx=5, pady=5)
+            except Exception as e:
+                print(f"Не найдена карта: {path} — {e}")
+
     def start_hand(self):
         """Начинаем новую раздачу."""
         self.log.delete(1.0, tk.END)
@@ -57,7 +80,6 @@ class PokerGUI(tk.Tk):
         # Логируем результат
         stage = self.simulator.stages[self.simulator.current_stage - 1] if self.simulator.current_stage > 0 else ""
 
-        # Если в логе был блеф — покажем иконку
         if hasattr(self.simulator.logger, 'last_action') and self.simulator.logger.last_action == 'bluff_raise':
             self.log.insert(tk.END, f"[{stage}] 🎭 {self.simulator.logger.last_player} сделал БЛЕФ-РЕЙЗ!\n")
 
@@ -81,32 +103,32 @@ class PokerGUI(tk.Tk):
         self.log.see(tk.END)
 
     def update_players(self):
-        """Обновляем отображение стеков игроков, включая подсветку блефа."""
+        """Обновляем отображение стеков игроков, включая подсветку блефа и карты."""
         for (frame, label), player in zip(self.player_frames, self.simulator.players):
             if not player.in_game:
-                # Игрок выбыл — красный текст
-                label.config(text=f"{player.name}: выбыл", fg="red")
+                label.config(text=f"{player.name}: выбыл", fg="red", image=None, compound=tk.LEFT)
             else:
-                # Игрок в игре — проверяем, был ли это блеф
-                if (hasattr(self.simulator.logger, 'last_player') and
-                        self.simulator.logger.last_player == player.name and
-                        self.simulator.logger.last_action == 'bluff_raise'):
+                hand_cards = player.hand
+                card_images = []
+                for card in hand_cards:
+                    filename = f"{card.rank_str()}{card.suit}.png"
+                    path = os.path.join(self.cards_dir, filename)
+                    try:
+                        img = tk.PhotoImage(file=path)
+                        img = img.subsample(2)  # уменьшаем в 2 раза
+                        card_images.append(img)
+                    except Exception as e:
+                        print(f"Не найдена карта: {path} — {e}")
+                        continue
 
-                    # Подсвечиваем блеф: фиолетовый и жирный
-                    label.config(
-                        text=f"{player.name}: стек {player.stack}",
-                        fg="purple",
-                        font=("Arial", 12, "bold")
-                    )
-                    # Через 3 секунды возвращаем обычный стиль
-                    self.after(3000, lambda lbl=label: lbl.config(fg="black", font=("Arial", 12)))
+                # Сохраняем изображения, чтобы они не удалились
+                player.card_images = card_images
+
+                text = f"{player.name}: стек {player.stack}"
+                if card_images:
+                    label.config(image=card_images[0], compound=tk.LEFT, text=text)
                 else:
-                    # Обычное состояние
-                    label.config(
-                        text=f"{player.name}: стек {player.stack}",
-                        fg="black",
-                        font=("Arial", 12)
-                    )
+                    label.config(text=text, image=None, compound=tk.LEFT)
 
 
 if __name__ == "__main__":
